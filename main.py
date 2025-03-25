@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import sys
 import argparse
 
 def extract_mut_type(df):
@@ -101,7 +100,7 @@ def long_to_wide(input_csv, headers, output_dir):
 
 def main():
   parser = argparse.ArgumentParser(description='Transform long RAVA visualization.csv into wide format',
-                                usage='Usage: ./main.py <input_csv> <output_dir>',
+                                usage='Usage: ./main.py <input_csv> <headers_csv> --output_dir=<output_dir>',
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('input_csv', type=str, help="Path to RAVA's visualization.csv file")
   parser.add_argument(
