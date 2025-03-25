@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import sys
 import argparse
 
 def extract_mut_type(df):
@@ -40,8 +41,7 @@ def extract_mat_peptide(df):
 
 def extract_snv_metadata(df):
   meta = df[["POSITION:NT_CHANGE", "NucCorrect", "AminoCorrect", "Position", "Protein"]]
-  
-  # print(meta.shape)
+
   meta = meta.rename(columns={
     'NucCorrect': 'NT_CHANGE',
     'AminoCorrect': 'AA_CHANGE',
@@ -65,17 +65,16 @@ def extract_snv_metadata(df):
 
 def long_to_wide(input_csv, headers, output_dir):
   df = pd.read_csv(input_csv)
-  headers_df = pd.read_csv(headers)
   df['Position'] = df['Position'].astype(int)
+  headers_df = pd.read_csv(headers)
 
-  df['Sample'] = df['Sample'].str.replace('.fastq.gz', '')
+  df['Sample'] = df['Sample'].str.replace('.fastq.gz', '')  # refactor: extract into a separate function (getting wide table)
   df = df[df['Sample'].isin(headers_df['SAMPLE_ID'])]
   df = pd.merge(df, headers_df, left_on='Sample', right_on='SAMPLE_ID', how='left')
 
   df['Syn'] = df['Syn'].str.replace(' SNV', '')
   df['POSITION:NT_CHANGE'] = df['Position'].astype(str) + ':' + df['NucCorrect']
   af_df_long = df[['NEW_HEADER', 'POSITION:NT_CHANGE', 'AF']]
-  af_df_long.to_csv('./results/tmp.csv')
   af_df_wide = af_df_long.pivot(index='POSITION:NT_CHANGE', columns='NEW_HEADER', values='AF')
   
   # reordering columns based on headers_df
@@ -84,7 +83,7 @@ def long_to_wide(input_csv, headers, output_dir):
   max_vals = af_df_wide.max(axis=1, skipna=True)
   count_vals = af_df_wide.count(axis=1)
   af_df_wide['MAX_AF'] = max_vals
-  af_df_wide['COUNT_AF'] = count_vals
+  af_df_wide['COUNT_AF'] = count_vals   # end of getting wide table function
   
   # extracting metadata for each SNV:
   snv_metadata = extract_snv_metadata(df)
@@ -93,15 +92,14 @@ def long_to_wide(input_csv, headers, output_dir):
   af_df_wide = pd.merge(af_df_wide, snv_metadata, on='POSITION:NT_CHANGE', how='outer')
   
   # Save the wide format DataFrame to a CSV file
-  output_file_path = os.path.join(output_dir, 'af_df_wide.csv')
+  output_file_path = os.path.join(output_dir, 'af_df_wide.xlsx')   # refactor: extract into a separate function
   try:
     os.makedirs(output_dir, exist_ok=True)
   except OSError as e:
     raise ValueError(f"Failed to create output directory: {output_dir}. Error: {e}")
-  af_df_wide.to_csv(output_file_path) # temporary exprot file and check if calculations correct
+  af_df_wide.to_excel(output_file_path, index=False, engine='openpyxl')
 
 def main():
-  print("Extracting data...")
   parser = argparse.ArgumentParser(description='Transform long RAVA visualization.csv into wide format',
                                 usage='Usage: ./main.py <input_csv> <output_dir>',
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -112,7 +110,9 @@ def main():
     help=('Path to CSV file with column "SAMPLE_ID" AND "NEW_HEADER". '
           'Row order will be used to order wide columns'))
   parser.add_argument('--output_dir', type=str, default='./results', help='Path to output directory')
+
   args = parser.parse_args()
+  print("Extracting data...")
   long_to_wide(args.input_csv, args.headers, args.output_dir)
   print("Done!")
   
