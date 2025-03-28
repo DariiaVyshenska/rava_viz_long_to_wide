@@ -5,27 +5,11 @@ import argparse
 def extract_mut_type(df):
   df = df.rename(columns={'Syn': 'MUT_TYPE'})
   mut_type_df = df[['POSITION:NT_CHANGE', 'MUT_TYPE']].drop_duplicates()
-  mut_types_count = mut_type_df['POSITION:NT_CHANGE'].value_counts().reset_index()
-  mut_types_count.columns = ['POSITION:NT_CHANGE', 'Freq']
-  mut_type_count_ambig = mut_types_count[mut_types_count['Freq'] > 1]
-  ambig_mut_all = mut_type_df[mut_type_df['POSITION:NT_CHANGE'].isin(mut_type_count_ambig['POSITION:NT_CHANGE'])]
   
-  ambig_mut_meta = pd.DataFrame({
-    'POSITION:NT_CHANGE': ambig_mut_all['POSITION:NT_CHANGE'].unique(),
-    'MUT_TYPE': None
-  })
+  # Group and collapse mutation types where more than one type across samples
+  groupped = mut_type_df.groupby('POSITION:NT_CHANGE')['MUT_TYPE'].agg(lambda x: ' or '.join(sorted(set(x)))).reset_index()
+  return groupped
 
-  for i in range(len(ambig_mut_meta)):
-    mut_id = ambig_mut_meta.loc[i, 'POSITION:NT_CHANGE']
-    mut_types = ambig_mut_all.loc[ambig_mut_all['POSITION:NT_CHANGE'] == mut_id, 'MUT_TYPE'].sort_values().unique()
-    new_mut_type = ' or '.join(mut_types)
-    ambig_mut_meta.loc[i, 'MUT_TYPE'] = new_mut_type
-
-  unambig_mut = mut_types_count[mut_types_count['Freq'] == 1]
-  unambig_mut_meta = mut_type_df[mut_type_df['POSITION:NT_CHANGE'].isin(unambig_mut['POSITION:NT_CHANGE'])]
-  unambig_mut
-  mut_types_all = pd.concat([unambig_mut_meta, ambig_mut_meta], ignore_index=True)
-  return mut_types_all
 
 def extract_mat_peptide(df):
   mat_pep = df[df['MatPeptide'] != '-']
@@ -100,7 +84,7 @@ def long_to_wide(input_csv, headers, output_dir):
 
 def main():
   parser = argparse.ArgumentParser(description='Transform long RAVA visualization.csv into wide format',
-                                usage='Usage: ./main.py <input_csv> <headers_csv> --output_dir=<output_dir>',
+                                usage='Usage: ./main.py <input_csv> <headers_csv> [--output_dir <output_dir>]',
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('input_csv', type=str, help="Path to RAVA's visualization.csv file")
   parser.add_argument(
