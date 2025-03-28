@@ -1,15 +1,7 @@
 import pandas as pd
 import os
 import argparse
-
-def extract_mut_type(df):
-  df = df.rename(columns={'Syn': 'MUT_TYPE'})
-  mut_type_df = df[['POSITION:NT_CHANGE', 'MUT_TYPE']].drop_duplicates()
-  
-  # Group and collapse mutation types where more than one type across samples
-  groupped = mut_type_df.groupby('POSITION:NT_CHANGE')['MUT_TYPE'].agg(lambda x: ' or '.join(sorted(set(x)))).reset_index()
-  return groupped
-
+from extractors import extract_mut_type
 
 def extract_mat_peptide(df):
   mat_pep = df[df['MatPeptide'] != '-']
@@ -50,6 +42,7 @@ def long_to_wide(input_csv, headers, output_dir):
   df = pd.read_csv(input_csv)
   df['Position'] = df['Position'].astype(int)
   headers_df = pd.read_csv(headers)
+  headers_df = headers_df[~headers_df['NEW_HEADER'].isna()]
 
   df['Sample'] = df['Sample'].str.replace('.fastq.gz', '')  # refactor: extract into a separate function (getting wide table)
   df = df[df['Sample'].isin(headers_df['SAMPLE_ID'])]
@@ -62,7 +55,7 @@ def long_to_wide(input_csv, headers, output_dir):
   
   # reordering columns based on headers_df
   af_df_wide = af_df_wide.reindex(columns=headers_df['NEW_HEADER'].tolist())
-  
+  af_df_wide.to_csv(os.path.join(output_dir, 'tmp.csv'), index=False)
   max_vals = af_df_wide.max(axis=1, skipna=True)
   count_vals = af_df_wide.count(axis=1)
   af_df_wide['MAX_AF'] = max_vals
@@ -81,6 +74,7 @@ def long_to_wide(input_csv, headers, output_dir):
   except OSError as e:
     raise ValueError(f"Failed to create output directory: {output_dir}. Error: {e}")
   af_df_wide.to_excel(output_file_path, index=False, engine='openpyxl')
+  af_df_wide.to_csv(os.path.join(output_dir, 'af_df_wide.csv'), index=False)
 
 def main():
   parser = argparse.ArgumentParser(description='Transform long RAVA visualization.csv into wide format',
