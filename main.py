@@ -1,42 +1,7 @@
 import pandas as pd
 import os
 import argparse
-from extractors import extract_mut_type
-
-def extract_mat_peptide(df):
-  mat_pep = df[df['MatPeptide'] != '-']
-  if mat_pep.empty:
-    return None
-  
-  mat_pep = mat_pep[['POSITION:NT_CHANGE', 'MatPeptide']].drop_duplicates().reset_index(drop=True)
-  mat_pep[['MAT_PEPTIDE', 'MAT_PEP_AA_CHANGE', 'MAT_PEP_NT_CHANGE']] = mat_pep['MatPeptide'].str.split(r"[:;] ", regex=True, expand = True) #.tolist()
-  mat_pep.drop(columns=['MatPeptide'], inplace=True)
-  return mat_pep
-
-
-def extract_snv_metadata(df):
-  meta = df[["POSITION:NT_CHANGE", "NucCorrect", "AminoCorrect", "Position", "Protein"]]
-
-  meta = meta.rename(columns={
-    'NucCorrect': 'NT_CHANGE',
-    'AminoCorrect': 'AA_CHANGE',
-    'Position': 'POSITION',
-    'Protein': 'PROTEIN',
-  })
-  meta.drop_duplicates(inplace=True)
-  
-  # extracting mutation type information
-  mut_types = extract_mut_type(df[['POSITION:NT_CHANGE', 'Syn']])
-  meta = pd.merge(meta, mut_types, on='POSITION:NT_CHANGE', how='outer')
-
-  # parsing MatPeptide information
-  mat_peptide_info = extract_mat_peptide(df[['POSITION:NT_CHANGE', 'MatPeptide']])
-  if mat_peptide_info is not None:
-    meta = pd.merge(meta, mat_peptide_info, on='POSITION:NT_CHANGE', how='left')
-
-  return meta
-  
-
+from extractors import extract_snv_metadata
 
 def long_to_wide(input_csv, headers, output_dir):
   df = pd.read_csv(input_csv)
@@ -44,7 +9,7 @@ def long_to_wide(input_csv, headers, output_dir):
   headers_df = pd.read_csv(headers)
   headers_df = headers_df[~headers_df['NEW_HEADER'].isna()]
 
-  df['Sample'] = df['Sample'].str.replace('.fastq.gz', '')  # refactor: extract into a separate function (getting wide table)
+  df['Sample'] = df['Sample'].str.replace('.fastq.gz', '')  # NEXT: refactor: extract into a separate function (getting wide table)
   df = df[df['Sample'].isin(headers_df['SAMPLE_ID'])]
   df = pd.merge(df, headers_df, left_on='Sample', right_on='SAMPLE_ID', how='left')
 
