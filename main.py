@@ -14,14 +14,13 @@ def long_to_wide(input_csv, headers, output_dir):
   df = pd.merge(df, headers_df, left_on='Sample', right_on='SAMPLE_ID', how='left')
 
   df['Syn'] = df['Syn'].str.replace(' SNV', '')
-  df['POSITION:NT_CHANGE'] = df['Position'].astype(str) + ':' + df['NucCorrect']
+  df['POSITION:NT_CHANGE'] = df['Position'].astype(str) +  ':' + df['NucCorrect']
   af_df_long = df[['NEW_HEADER', 'POSITION:NT_CHANGE', 'AF']]
   af_df_wide = af_df_long.pivot(index='POSITION:NT_CHANGE', columns='NEW_HEADER', values='AF')
   
   # reordering columns based on headers_df
   af_df_wide = af_df_wide.reindex(columns=headers_df['NEW_HEADER'].tolist())
   os.makedirs(output_dir, exist_ok=True)
-  af_df_wide.to_csv(os.path.join(output_dir, 'tmp.csv'), index=False)
   max_vals = af_df_wide.max(axis=1, skipna=True)
   count_vals = af_df_wide.count(axis=1)
   af_df_wide['MAX_AF'] = max_vals
@@ -52,7 +51,7 @@ def main():
     type=str, 
     help=('Path to CSV file with column "SAMPLE_ID" AND "NEW_HEADER". '
           'Row order will be used to order wide columns'))
-  parser.add_argument('--output_dir', type=str, default='./results', help='Path to output directory')
+  parser.add_argument('--output_dir', type=str, default='.', help='Path to output directory')
 
   args = parser.parse_args()
   print("Extracting data...")
